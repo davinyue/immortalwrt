@@ -23,8 +23,14 @@ HOST_CONFIGURE_ARGS += \
 HOST_CONFIGURE_VARS += \
 	PERL="/usr/bin/env perl"
 
+define Host/Prepare
+	$(call Host/Prepare/Default)
+	touch $(HOST_BUILD_DIR)/aclocal.m4 \
+		$(HOST_BUILD_DIR)/configure \
+		$(HOST_BUILD_DIR)/Makefile.in
+endef
+
 define Host/Configure
-	(cd $(HOST_BUILD_DIR); $(AM_TOOL_PATHS) STAGING_DIR_HOST="" ./bootstrap)
 	$(call Host/Configure/Default)
 endef
 

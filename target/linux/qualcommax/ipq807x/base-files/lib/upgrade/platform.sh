@@ -46,6 +46,10 @@ platform_pre_upgrade() {
 
 platform_do_upgrade() {
 	case "$(board_name)" in
+	arista,c260|\
+	arista,c360)
+		arista_ap_do_upgrade "$1"
+		;;
 	aliyun,ap8220|\
 	zte,mf269-stock)
 		CI_UBIPART="rootfs"
@@ -58,12 +62,15 @@ platform_do_upgrade() {
 	edimax,cax1800|\
 	netgear,rax120v2|\
 	netgear,rbr750|\
+	netgear,rbr850|\
 	netgear,rbs750|\
+	netgear,rbs850|\
 	netgear,sxr80|\
 	netgear,sxs80|\
 	netgear,wax218|\
 	netgear,wax620|\
 	netgear,wax630|\
+	tplink,tl-er2260t|\
 	zyxel,nwa110ax|\
 	zyxel,nwa210ax)
 		nand_do_upgrade "$1"
@@ -77,6 +84,7 @@ platform_do_upgrade() {
 	buffalo,wxr-5950ax12)
 		CI_KERN_UBIPART="rootfs"
 		CI_ROOT_UBIPART="user_property"
+		CI_DATA_UBIPART="user_property"
 		buffalo_upgrade_prepare
 		nand_do_flash_file "$1" || nand_do_upgrade_failed
 		nand_do_restore_config || nand_do_upgrade_failed
@@ -135,6 +143,7 @@ platform_do_upgrade() {
 		# Kernel and rootfs are placed in 2 different UBI
 		CI_KERN_UBIPART="ubi_kernel"
 		CI_ROOT_UBIPART="rootfs"
+		CI_DATA_UBIPART="rootfs"
 		nand_do_upgrade "$1"
 		;;
 	redmi,ax6-stock|\
@@ -176,8 +185,8 @@ platform_do_upgrade() {
 		nand_do_upgrade "$1"
 		;;
 	tplink,deco-x80-5g|\
-	tplink,eap620hd-v1|\
-	tplink,eap660hd-v1)
+	tplink,eap620-hd-v1|\
+	tplink,eap660-hd-v1)
 		remove_oem_ubi_volume ubi_rootfs
 		tplink_do_upgrade "$1"
 		;;
@@ -208,6 +217,7 @@ platform_do_upgrade() {
 	zte,mf269)
 		CI_KERN_UBIPART="ubi_kernel"
 		CI_ROOT_UBIPART="rootfs"
+		CI_DATA_UBIPART="rootfs"
 		nand_do_upgrade "$1"
 		;;
 	zyxel,nbg7815)

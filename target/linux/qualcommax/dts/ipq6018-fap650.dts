@@ -169,14 +169,6 @@
 	};
 };
 
-&usb2 {
-	status = "okay";
-};
-
-&usb3 {
-	status = "okay";
-};
-
 &edma {
 	status = "okay";
 };
@@ -330,6 +322,7 @@
 			partition@0 {
 				label = "rootfs";
 				reg = <0x00000000 0x03c00000>;
+				linux,rootfs;
 			};
 
 			partition@3c00000 {
@@ -359,9 +352,13 @@
 };
 
 &usb3 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
 &usb2 {
+	dr_mode = "host";
+
 	status = "okay";
 };

@@ -11,13 +11,14 @@
 
 / {
 	aliases {
+		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart4;
+		serial2 = &blsp1_uart5;
+
 		led-boot = &led_run;
 		led-failsafe = &led_run;
 		led-running = &led_run;
 		led-upgrade = &led_run;
-		serial0 = &blsp1_uart3;
-		serial1 = &blsp1_uart4;
-		serial2 = &blsp1_uart5;
 	};
 
 	chosen {
@@ -100,10 +101,6 @@
 &qpic_nand {
 	status = "okay";
 
-	partitions {
-		status = "disabled";
-	};
-
 	nand@0 {
 		reg = <0>;
 
@@ -111,61 +108,11 @@
 		nand-ecc-step-size = <512>;
 		nand-bus-width = <8>;
 
-		partitions: partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
+		partitions {
+			compatible = "qcom,smem-part";
 
-			partition@0 {
-				label = "0:sbl1";
-				reg = <0x00000000 0x00180000>;
-				read-only;
-			};
-
-			partition@180000 {
-				label = "0:mibib";
-				reg = <0x00180000 0x00100000>;
-				read-only;
-			};
-
-			partition@280000 {
-				label = "0:qsee";
-				reg = <0x00280000 0x00380000>;
-				read-only;
-			};
-
-			partition@600000 {
-				label = "0:devcfg";
-				reg = <0x00600000 0x00080000>;
-				read-only;
-			};
-
-			partition@680000 {
-				label = "0:rpm";
-				reg = <0x00680000 0x00080000>;
-				read-only;
-			};
-
-			partition@700000 {
-				label = "0:cdt";
-				reg = <0x00700000 0x00080000>;
-				read-only;
-			};
-
-			partition@780000 {
-				label = "0:appsblenv";
-				reg = <0x00780000 0x00080000>;
-			};
-
-			partition@800000 {
-				label = "0:appsbl";
-				reg = <0x00800000 0x00180000>;
-				read-only;
-			};
-
-			partition@980000 {
+			partition-0-art {
 				label = "0:art";
-				reg = <0x00980000 0x00080000>;
 				read-only;
 
 				nvmem-layout {
@@ -174,19 +121,13 @@
 					#size-cells = <1>;
 
 					macaddr_wan: macaddr@0 {
-						reg = <0x00 0x06>;
+						reg = <0x0 0x6>;
 					};
 
 					macaddr_lan: macaddr@6 {
-						reg = <0x06 0x06>;
+						reg = <0x6 0x6>;
 					};
 				};
-			};
-
-			partition@7d00000 {
-				label = "0:ethphyfw";
-				reg = <0x07d00000 0x00080000>;
-				read-only;
 			};
 		};
 	};
@@ -206,6 +147,7 @@
 
 	ethernet-phy-package@0 {
 		compatible = "qcom,qca8075-package";
+		qcom,package-mode = "psgmii";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;

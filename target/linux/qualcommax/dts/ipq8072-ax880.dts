@@ -238,14 +238,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
-&cryptobam {
-	status = "okay";
-};
-
 &prng {
 	status = "okay";
 };
@@ -263,6 +255,8 @@
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
@@ -294,6 +288,7 @@
 			rootfs: partition@3c00000 {
 				label = "rootfs";
 				reg = <0x3c00000 0x3400000>;
+				linux,rootfs;
 			};
 
 			partition@7000000 {

@@ -11,6 +11,8 @@ ipq807x_setup_interfaces()
 	local board="$1"
 
 	case "$board" in
+	arista,c260|\
+	arista,c360|\
 	aliyun,ap8220|\
 	edgecore,eap102|\
 	tcl,linkhub-hh500v|\
@@ -22,13 +24,14 @@ ipq807x_setup_interfaces()
 		ucidef_set_interfaces_lan_wan "lan" "wan"
 		;;
 	asus,rt-ax89x)
-		ucidef_set_interfaces_lan_wan "10g-sfp 10g-copper lan1 lan2 lan3 lan4 lan5 lan6 lan7 lan8" "wan"
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5 lan6 lan7 lan8 10g-sfp 10g-copper" "wan"
 		;;
 	arcadyan,aw1000|\
 	buffalo,wxr-5950ax12|\
 	dynalink,dl-wrx36|\
 	linksys,mx5300|\
 	linksys,mx8500|\
+	netgear,rbr850|\
 	xiaomi,ax9000|\
 	xiaomi,ax9000-stock|\
 	zbtlink,zbt-z800ax)
@@ -54,12 +57,15 @@ ipq807x_setup_interfaces()
 	edimax,cax1800|\
 	netgear,wax218|\
 	netgear,wax620|\
-	tplink,eap620hd-v1|\
-	tplink,eap660hd-v1)
+	tplink,eap620-hd-v1|\
+	tplink,eap660-hd-v1)
 		ucidef_set_interface_lan "lan" "dhcp"
 		;;
 	netgear,rax120v2)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5" "wan"
+		;;
+	netgear,rbs850)
+		ucidef_set_interface_lan "lan1 lan2 lan3 lan4" "dhcp"
 		;;
 	netgear,sxr80|\
 	netgear,sxs80)
@@ -71,6 +77,9 @@ ipq807x_setup_interfaces()
 		;;
 	qnap,301w)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 10g-2" "10g-1"
+		;;
+	tplink,tl-er2260t)
+		ucidef_set_interfaces_lan_wan "ge1 ge2 ge3 ge4 10ge2" "10ge1"
 		;;
 	zyxel,nbg7815)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 10g" "wan"
@@ -109,8 +118,8 @@ ipq807x_setup_macs()
 		lan_mac=$(macaddr_add $label_mac 1)
 		wan_mac=$label_mac
 		;;
-	tplink,eap620hd-v1|\
-	tplink,eap660hd-v1)
+	tplink,eap620-hd-v1|\
+	tplink,eap660-hd-v1)
 		lan_mac=$(get_mac_binary /tmp/factory_data/default-mac 0)
 		label_mac=$lan_mac
 		;;

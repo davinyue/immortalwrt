@@ -118,18 +118,14 @@
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
 &usb_1 {
-	status = "okay";
-};
+	dr_mode = "host";
 
-&cryptobam {
-	status = "okay";
-};
-
-&crypto {
 	status = "okay";
 };
 

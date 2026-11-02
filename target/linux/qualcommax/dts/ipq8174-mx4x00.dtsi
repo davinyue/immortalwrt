@@ -2,10 +2,10 @@
 /* Copyright (c) 2023, Mohammad Sayful Islam <Sayf.mohammad01@gmail.com> */
 
 #include "ipq8074.dtsi"
-#include "ipq8074-ac-cpu.dtsi"
-#include "ipq8074-common.dtsi"
 #include "ipq8074-ess.dtsi"
 #include "ipq8074-nss.dtsi"
+#include "ipq8074-common.dtsi"
+#include "ipq8074-ac-cpu.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -43,45 +43,53 @@
 	};
 };
 
-&blsp1_i2c2 {
-	status = "okay";
+&tlmm {
+	button_pins: button-state {
+		pins = "gpio52", "gpio67";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
 
-	led-controller@62 {
-		compatible = "nxp,pca9633";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x62>;
-		nxp,hw-blink;
-
-		led_system_red: system-red {
-			reg = <0>;
-			color = <LED_COLOR_ID_RED>;
-			function = LED_FUNCTION_STATUS;
+	mx4x00_mdio_pins: mdio-state {
+		mdc-pins {
+			pins = "gpio68";
+			function = "mdc";
+			drive-strength = <8>;
+			bias-pull-up;
 		};
 
-		led_system_green: system-green {
-			reg = <1>;
-			color = <LED_COLOR_ID_GREEN>;
-			function = LED_FUNCTION_STATUS;
-		};
-
-		led_system_blue: system-blue {
-			reg = <2>;
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_STATUS;
+		mdio-pins {
+			pins = "gpio69";
+			function = "mdio";
+			drive-strength = <8>;
+			bias-pull-up;
 		};
 	};
+};
+
+&blsp1_uart5 {
+	status = "okay";
+};
+
+&prng {
+	status = "okay";
+};
+
+&qpic_bam {
+	status = "okay";
 };
 
 &mdio {
 	status = "okay";
 
-	pinctrl-0 = <&mdio_pins>;
+	pinctrl-0 = <&mx4x00_mdio_pins>;
 	pinctrl-names = "default";
 	reset-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
 
 	ethernet-phy-package@0 {
 		compatible = "qcom,qca8075-package";
+		qcom,package-mode = "psgmii";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;
@@ -111,9 +119,9 @@
 &switch {
 	status = "okay";
 
-	switch_lan_bmp = <(ESS_PORT3 | ESS_PORT4 | ESS_PORT5)>;
-	switch_wan_bmp = <ESS_PORT2>;
-	switch_mac_mode = <MAC_MODE_PSGMII>;
+	switch_lan_bmp = <(ESS_PORT3 | ESS_PORT4 | ESS_PORT5)>; /* lan port bitmap */
+	switch_wan_bmp = <ESS_PORT2>; /* wan port bitmap */
+	switch_mac_mode = <MAC_MODE_PSGMII>; /* mac mode for uniphy instance0*/
 
 	qcom,port_phyinfo {
 		port@2 {

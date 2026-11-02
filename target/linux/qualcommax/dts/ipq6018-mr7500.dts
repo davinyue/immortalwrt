@@ -18,6 +18,7 @@
 	compatible = "linksys,mr7500", "qcom,ipq6018";
 
 	aliases {
+		label-mac-device = &dp5_syn;
 		serial0 = &blsp1_uart3;
 		serial1 = &blsp1_uart2;
 
@@ -25,8 +26,6 @@
 		led-running = &led_system_blue;
 		led-failsafe = &led_system_red;
 		led-upgrade = &led_system_green;
-
-		label-mac-device = &dp5_syn;
 	};
 
 	chosen {
@@ -70,7 +69,7 @@
 			linux,default-trigger = "usbport";
 		};
 
-		led_system_red: system-red {
+		led_system_red: red {
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_INDICATOR;
 			pwms = <&pwm 2 1250000>;
@@ -78,14 +77,14 @@
 			panic-indicator;
 		};
 
-		led_system_green: system-green {
+		led_system_green: green {
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_INDICATOR;
 			pwms = <&pwm 3 1250000>;
 			max-brightness = <255>;
 		};
 
-		led_system_blue: system-blue {
+		led_system_blue: blue {
 			color = <LED_COLOR_ID_BLUE>;
 			function = LED_FUNCTION_POWER;
 			pwms = <&pwm 0 1250000>;
@@ -103,7 +102,7 @@
 };
 
 &tlmm {
-	pwm_pins: pwm-pins {
+	pwm_pins: pwm_pinmux {
 		/*LED_B*/
 		mux_0 {
 			pins = "gpio29";
@@ -137,36 +136,21 @@
 		};
 	};
 
-	extcon_usb_pins: extcon-usb-pins {
+	extcon_usb_pins: extcon_usb_pins {
 		pins = "gpio26";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	button_pins: button-pins {
-		wps_button {
-			pins = "gpio37";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-		reset_button {
-			pins = "gpio56";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-	};
-
-	hsuart_pins: hsuart-pins {
+	hsuart_pins: hsuart_pins {
 		pins = "gpio71", "gpio72", "gpio69", "gpio70";
 		function = "blsp1_uart";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	btcoex_pins: btcoex-pins {
+	btcoex_pins: btcoex_pins {
 		mux_0 {
 			pins = "gpio51";
 			function = "pta1_1";
@@ -202,12 +186,11 @@
 	status = "okay";
 
 	ethernet-phy-package {
+		compatible = "qcom,qca8075-package";
+		qcom,package-mode = "qsgmii";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "qcom,qca8075-package";
 		reg = <0>;
-
-		qcom,package-mode = "qsgmii";
 
 		qca8075_0: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
@@ -308,9 +291,13 @@
 
 	aqr114c: ethernet-phy@8 {
 		reg = <8>;
-		reset-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <250000>;
 		compatible = "ethernet-phy-ieee802.3-c45";
 		firmware-name = "marvell/AQR114C.cld";
+		nvmem-cells = <&aqr_fw>;
+		nvmem-cell-names = "firmware";
 
 		leds {
 			#address-cells = <1>;
@@ -336,8 +323,8 @@
 &dp1 {
 	status = "okay";
 	label = "lan1";
-	phy-handle = <&qca8075_0>;
 	phy-mode = "qsgmii";
+	phy-handle = <&qca8075_0>;
 	nvmem-cells = <&hw_mac_addr 1>;
 	nvmem-cell-names = "mac-address";
 };
@@ -345,8 +332,8 @@
 &dp2 {
 	status = "okay";
 	label = "lan2";
-	phy-handle = <&qca8075_1>;
 	phy-mode = "qsgmii";
+	phy-handle = <&qca8075_1>;
 	nvmem-cells = <&hw_mac_addr 1>;
 	nvmem-cell-names = "mac-address";
 };
@@ -354,8 +341,8 @@
 &dp3 {
 	status = "okay";
 	label = "lan3";
-	phy-handle = <&qca8075_2>;
 	phy-mode = "qsgmii";
+	phy-handle = <&qca8075_2>;
 	nvmem-cells = <&hw_mac_addr 1>;
 	nvmem-cell-names = "mac-address";
 };
@@ -363,8 +350,8 @@
 &dp4 {
 	status = "okay";
 	label = "lan4";
-	phy-handle = <&qca8075_3>;
 	phy-mode = "qsgmii";
+	phy-handle = <&qca8075_3>;
 	nvmem-cells = <&hw_mac_addr 1>;
 	nvmem-cell-names = "mac-address";
 };
@@ -373,7 +360,6 @@
 	status = "okay";
 	label = "wan";
 	phy-handle = <&aqr114c>;
-	phy-mode = "usxgmii";
 	nvmem-cells = <&hw_mac_addr 0>;
 	nvmem-cell-names = "mac-address";
 };
@@ -438,21 +424,35 @@
 
 		partitions {
 			compatible = "qcom,smem-part";
-			#address-cells = <1>;
-			#size-cells = <1>;
 
 			partition-0-devinfo {
 				label = "devinfo";
 				read-only;
-				#address-cells = <1>;
-				#size-cells = <1>;
 
 				nvmem-layout {
 					compatible = "ascii-eq-delim-env";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-					hw_mac_addr: hw-mac-addr {
+					hw_mac_addr: hw_mac_addr {
 						compatible = "mac-base";
 						#nvmem-cell-cells = <1>;
+					};
+				};
+			};
+
+			partition-0-ethphyfw {
+				label = "0:ethphyfw";
+				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					aqr_fw: firmware@0 {
+						/* Skip the QCOM MBN Header of 40 bytes */
+						reg = <0x28 0x60002>;
 					};
 				};
 			};
@@ -460,9 +460,19 @@
 	};
 };
 
-&dwc_0 {
+&qusb_phy_0 {
+	status = "okay";
+	vdd-supply = <&reg_usb_vbus>;
+};
+
+&usb3 {
+	dr_mode = "host";
+
 	#address-cells = <1>;
 	#size-cells = <0>;
+
+	vbus-supply = <&reg_usb_vbus>;
+	status = "okay";
 
 	usb3_port1: port@1 {
 		reg = <1>;
@@ -473,16 +483,6 @@
 		reg = <2>;
 		#trigger-source-cells = <0>;
 	};
-};
-
-&qusb_phy_0 {
-	status = "okay";
-	vdd-supply = <&reg_usb_vbus>;
-};
-
-&usb3 {
-	status = "okay";
-	vbus-supply = <&reg_usb_vbus>;
 };
 
 &pcie0 {

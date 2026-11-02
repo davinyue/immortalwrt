@@ -1,26 +1,33 @@
 --- a/drivers/net/bonding/bond_3ad.c
 +++ b/drivers/net/bonding/bond_3ad.c
-@@ -115,6 +115,40 @@ static void ad_marker_response_received(
+@@ -115,6 +115,52 @@ static void ad_marker_response_received(
  					struct port *port);
  static void ad_update_actor_keys(struct port *port, bool reset);
  
 +/* QCA NSS ECM bonding support - Start */
 +struct bond_cb __rcu *bond_cb;
++static DEFINE_SPINLOCK(bond_cb_lock);
 +
 +int bond_register_cb(struct bond_cb *cb)
 +{
 +	struct bond_cb *lag_cb;
++	struct bond_cb *old_cb;
 +
-+	lag_cb = kzalloc(sizeof(*lag_cb), GFP_ATOMIC | __GFP_NOWARN);
-+	if (!lag_cb) {
-+		return -1;
++	lag_cb = kmemdup(cb, sizeof(*lag_cb), GFP_ATOMIC | __GFP_NOWARN);
++	if (!lag_cb)
++		return -ENOMEM;
++
++	spin_lock_bh(&bond_cb_lock);
++	old_cb = rcu_dereference_protected(bond_cb,
++					      lockdep_is_held(&bond_cb_lock));
++	rcu_assign_pointer(bond_cb, lag_cb);
++	spin_unlock_bh(&bond_cb_lock);
++
++	if (old_cb) {
++		synchronize_rcu();
++		kfree(old_cb);
 +	}
 +
-+	memcpy((void *)lag_cb, (void *)cb, sizeof(*cb));
-+
-+	rcu_read_lock();
-+	rcu_assign_pointer(bond_cb, lag_cb);
-+	rcu_read_unlock();
 +	return 0;
 +}
 +EXPORT_SYMBOL(bond_register_cb);
@@ -29,11 +36,16 @@
 +{
 +	struct bond_cb *lag_cb_main;
 +
-+	rcu_read_lock();
-+	lag_cb_main = rcu_dereference(bond_cb);
++	spin_lock_bh(&bond_cb_lock);
++	lag_cb_main = rcu_dereference_protected(bond_cb,
++						    lockdep_is_held(&bond_cb_lock));
 +	rcu_assign_pointer(bond_cb, NULL);
-+	rcu_read_unlock();
++	spin_unlock_bh(&bond_cb_lock);
 +
++	if (!lag_cb_main)
++		return;
++
++	synchronize_rcu();
 +	kfree(lag_cb_main);
 +}
 +EXPORT_SYMBOL(bond_unregister_cb);
@@ -41,7 +53,7 @@
  
  /* ================= api to bonding and kernel code ================== */
  
-@@ -1183,7 +1217,31 @@ static void ad_mux_machine(struct port *
+@@ -1200,7 +1246,31 @@ static void ad_mux_machine(struct port *
  			ad_disable_collecting_distributing(port,
  							   update_slave_arr);
  			port->ntt = true;
@@ -73,8 +85,8 @@
  		case AD_MUX_COLLECTING_DISTRIBUTING:
  			port->actor_oper_port_state |= LACP_STATE_COLLECTING;
  			port->actor_oper_port_state |= LACP_STATE_DISTRIBUTING;
-@@ -2128,6 +2186,17 @@ static void ad_disable_collecting_distri
- 		__disable_port(port);
+@@ -2157,6 +2227,17 @@ static void ad_disable_collecting_distri
+ 		bond_3ad_set_carrier(port->slave->bond);
  		/* Slave array needs an update */
  		*update_slave_arr = true;
 +
@@ -160,8 +172,8 @@
 +	struct bond_cb *lag_cb_main; /* QCA NSS ECM bonding support */
  	int res = 0, i;
  
- 	if (slave_dev->flags & IFF_MASTER &&
-@@ -2302,6 +2342,15 @@ skip_mac_set:
+ 	if (slave_dev->type == ARPHRD_CAN) {
+@@ -2308,6 +2348,15 @@ skip_mac_set:
  		   bond_is_active_slave(new_slave) ? "an active" : "a backup",
  		   new_slave->link != BOND_LINK_DOWN ? "an up" : "a down");
  
@@ -177,7 +189,7 @@
  	/* enslave is successful */
  	bond_queue_slave_event(new_slave);
  	return 0;
-@@ -2367,6 +2416,15 @@ err_undo_flags:
+@@ -2373,6 +2422,15 @@ err_undo_flags:
  		}
  	}
  
@@ -193,7 +205,7 @@
  	return res;
  }
  
-@@ -2388,6 +2446,7 @@ static int __bond_release_one(struct net
+@@ -2394,6 +2452,7 @@ static int __bond_release_one(struct net
  	struct bonding *bond = netdev_priv(bond_dev);
  	struct slave *slave, *oldcurrent;
  	struct sockaddr_storage ss;
@@ -201,7 +213,7 @@
  	int old_flags = bond_dev->flags;
  	netdev_features_t old_features = bond_dev->features;
  
-@@ -2410,6 +2469,15 @@ static int __bond_release_one(struct net
+@@ -2416,6 +2475,15 @@ static int __bond_release_one(struct net
  
  	bond_set_slave_inactive_flags(slave, BOND_SLAVE_NOTIFY_NOW);
  
@@ -217,7 +229,7 @@
  	bond_sysfs_slave_del(slave);
  
  	/* recompute stats just before removing the slave */
-@@ -2745,6 +2813,8 @@ static void bond_miimon_commit(struct bo
+@@ -2749,6 +2817,8 @@ static void bond_miimon_commit(struct bo
  	struct slave *slave, *primary, *active;
  	bool do_failover = false;
  	struct list_head *iter;
@@ -226,7 +238,7 @@
  
  	ASSERT_RTNL();
  
-@@ -2784,6 +2854,12 @@ static void bond_miimon_commit(struct bo
+@@ -2788,6 +2858,12 @@ static void bond_miimon_commit(struct bo
  				bond_set_active_slave(slave);
  			}
  
@@ -239,7 +251,7 @@
  			slave_info(bond->dev, slave->dev, "link status definitely up, %u Mbps %s duplex\n",
  				   slave->speed == SPEED_UNKNOWN ? 0 : slave->speed,
  				   slave->duplex ? "full" : "half");
-@@ -2838,6 +2914,16 @@ static void bond_miimon_commit(struct bo
+@@ -2842,6 +2918,16 @@ static void bond_miimon_commit(struct bo
  		unblock_netpoll_tx();
  	}
  
@@ -256,7 +268,7 @@
  	bond_set_carrier(bond);
  }
  
-@@ -4087,9 +4173,316 @@ static inline u32 bond_eth_hash(struct s
+@@ -4092,9 +4178,316 @@ static inline u32 bond_eth_hash(struct s
  		return 0;
  
  	ep = (struct ethhdr *)(data + mhoff);
@@ -574,7 +586,7 @@
  static bool bond_flow_ip(struct sk_buff *skb, struct flow_keys *fk, const void *data,
  			 int hlen, __be16 l2_proto, int *nhoff, int *ip_proto, bool l34)
  {
-@@ -5264,15 +5657,18 @@ static netdev_tx_t bond_3ad_xor_xmit(str
+@@ -5271,15 +5664,18 @@ static netdev_tx_t bond_3ad_xor_xmit(str
  				     struct net_device *dev)
  {
  	struct bonding *bond = netdev_priv(dev);
@@ -600,7 +612,7 @@
  }
  
  /* in broadcast mode, we send everything to all or usable slave interfaces.
-@@ -5537,7 +5933,7 @@ static netdev_tx_t __bond_start_xmit(str
+@@ -5544,7 +5940,7 @@ static netdev_tx_t __bond_start_xmit(str
  			return bond_xmit_broadcast(skb, dev, false);
  		fallthrough;
  	case BOND_MODE_XOR:
@@ -639,7 +651,7 @@
  #ifdef CONFIG_NET_POLL_CONTROLLER
  extern atomic_t netpoll_block_tx;
  
-@@ -679,6 +681,7 @@ struct bond_net {
+@@ -680,6 +682,7 @@ struct bond_net {
  
  int bond_rcv_validate(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
  netdev_tx_t bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
@@ -647,7 +659,7 @@
  int bond_create(struct net *net, const char *name);
  int bond_create_sysfs(struct bond_net *net);
  void bond_destroy_sysfs(struct bond_net *net);
-@@ -712,6 +715,13 @@ struct bond_vlan_tag *bond_verify_device
+@@ -713,6 +716,13 @@ struct bond_vlan_tag *bond_verify_device
  					      int level);
  int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave);
  void bond_slave_arr_work_rearm(struct bonding *bond, unsigned long delay);
@@ -661,7 +673,7 @@
  void bond_work_init_all(struct bonding *bond);
  void bond_work_cancel_all(struct bonding *bond);
  
-@@ -817,4 +827,18 @@ static inline netdev_tx_t bond_tx_drop(s
+@@ -818,4 +828,18 @@ static inline netdev_tx_t bond_tx_drop(s
  	return NET_XMIT_DROP;
  }
  

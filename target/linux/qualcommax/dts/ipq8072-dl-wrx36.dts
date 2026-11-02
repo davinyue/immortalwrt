@@ -86,14 +86,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
-&crypto {
-	status = "okay";
-};
-
 &qpic_bam {
 	status = "okay";
 };
@@ -152,6 +144,10 @@
 					macaddr_art_18: macaddr@18 {
 						reg = <0x18 0x6>;
 					};
+
+					caldata: calibration@0x1000 {
+						reg = <0x1000 0x20000>;
+					};
 				};
 			};
 		};
@@ -167,6 +163,8 @@
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
@@ -318,4 +316,6 @@
 &wifi {
 	status = "okay";
 	qcom,ath11k-calibration-variant = "Dynalink-DL-WRX36";
+	nvmem-cell-names = "calibration";
+	nvmem-cells = <&caldata>;
 };

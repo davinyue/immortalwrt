@@ -1,38 +1,41 @@
 --- a/drivers/net/ifb.c
 +++ b/drivers/net/ifb.c
-@@ -151,6 +151,31 @@ resched:
+@@ -151,6 +151,34 @@ resched:
  
  }
  
 +void ifb_update_offload_stats(struct net_device *dev, struct pcpu_sw_netstats *offload_stats)
 +{
 +	struct ifb_dev_private *dp;
-+   struct ifb_q_private *txp;
++	struct ifb_q_private *txp;
 +
-+   if (!dev || !offload_stats) {
-+   	return;
-+   }
++	if (!dev || !offload_stats) {
++		return;
++	}
 +
-+   if (!(dev->priv_flags_ext & IFF_EXT_IFB)) {
-+       return;
-+   }
++	if (!(dev->priv_flags_ext & IFF_EXT_IFB)) {
++		return;
++	}
 +
-+   dp = netdev_priv(dev);
-+   txp = dp->tx_private;
++	dp = netdev_priv(dev);
++	txp = dp->tx_private;
 +
-+   u64_stats_update_begin(&txp->rx_stats.sync);
-+   txp->rx_stats.packets += u64_stats_read(&offload_stats->rx_packets);
-+   txp->rx_stats.bytes += u64_stats_read(&offload_stats->rx_bytes);
-+   txp->tx_stats.packets += u64_stats_read(&offload_stats->tx_packets);
-+   txp->tx_stats.bytes += u64_stats_read(&offload_stats->tx_bytes);
-+   u64_stats_update_end(&txp->rx_stats.sync);
++	u64_stats_update_begin(&txp->rx_stats.sync);
++	txp->rx_stats.packets += u64_stats_read(&offload_stats->rx_packets);
++	txp->rx_stats.bytes += u64_stats_read(&offload_stats->rx_bytes);
++	u64_stats_update_end(&txp->rx_stats.sync);
++
++	u64_stats_update_begin(&txp->tx_stats.sync);
++	txp->tx_stats.packets += u64_stats_read(&offload_stats->tx_packets);
++	txp->tx_stats.bytes += u64_stats_read(&offload_stats->tx_bytes);
++	u64_stats_update_end(&txp->tx_stats.sync);
 +}
 +EXPORT_SYMBOL(ifb_update_offload_stats);
 +
  static void ifb_stats64(struct net_device *dev,
  			struct rtnl_link_stats64 *stats)
  {
-@@ -326,6 +351,7 @@ static void ifb_setup(struct net_device
+@@ -325,6 +353,7 @@ static void ifb_setup(struct net_device
  	dev->flags |= IFF_NOARP;
  	dev->flags &= ~IFF_MULTICAST;
  	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
@@ -42,7 +45,7 @@
  	dev->needs_free_netdev = true;
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -5040,6 +5040,15 @@ void dev_uc_flush(struct net_device *dev
+@@ -5051,6 +5051,15 @@ void dev_uc_flush(struct net_device *dev
  void dev_uc_init(struct net_device *dev);
  
  /**
@@ -58,7 +61,7 @@
   *  __dev_uc_sync - Synchronize device's unicast list
   *  @dev:  device to sync
   *  @sync: function to call if address should be added
-@@ -5607,6 +5616,11 @@ static inline bool netif_is_failover_sla
+@@ -5618,6 +5627,11 @@ static inline bool netif_is_failover_sla
  	return dev->priv_flags & IFF_FAILOVER_SLAVE;
  }
  
@@ -331,7 +334,7 @@
  
  struct Qdisc *qdisc_lookup_rcu(struct net_device *dev, u32 handle)
  {
-@@ -2518,4 +2519,26 @@ static int __init pktsched_init(void)
+@@ -2544,4 +2545,26 @@ static int __init pktsched_init(void)
  	return 0;
  }
  
@@ -360,9 +363,9 @@
  subsys_initcall(pktsched_init);
 --- a/net/sched/sch_generic.c
 +++ b/net/sched/sch_generic.c
-@@ -1091,6 +1091,7 @@ static void __qdisc_destroy(struct Qdisc
+@@ -1110,6 +1110,7 @@ static void __qdisc_destroy(struct Qdisc
  
- 	call_rcu(&qdisc->rcu, qdisc_free_cb);
+ 	qdisc_free_rcu(qdisc);
  }
 +EXPORT_SYMBOL(qdisc_destroy);
  
@@ -378,7 +381,7 @@
  	u32			limit;
  	const struct Qdisc_ops	*ops;
  	struct qdisc_size_table	__rcu *stab;
-@@ -782,6 +783,42 @@ static inline bool skb_skip_tc_classify(
+@@ -783,6 +784,42 @@ static inline bool skb_skip_tc_classify(
  	return false;
  }
  
@@ -421,7 +424,7 @@
  /* Reset all TX qdiscs greater than index of a device.  */
  static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
  {
-@@ -1427,4 +1464,9 @@ static inline void qdisc_synchronize(con
+@@ -1433,4 +1470,9 @@ static inline void qdisc_synchronize(con
  		msleep(1);
  }
  
@@ -451,13 +454,3 @@
  	__u8			remcsum_offload:1;
  	__u8			csum_complete_sw:1;
  	__u8			csum_level:2;
---- a/include/linux/timer_types.h
-+++ b/include/linux/timer_types.h
-@@ -14,6 +14,7 @@ struct timer_list {
- 	unsigned long		expires;
- 	void			(*function)(struct timer_list *);
- 	u32			flags;
-+	unsigned long		cust_data;
- 
- #ifdef CONFIG_LOCKDEP
- 	struct lockdep_map	lockdep_map;

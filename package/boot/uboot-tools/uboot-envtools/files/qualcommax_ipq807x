@@ -28,6 +28,8 @@ ubootenv_mtdinfo () {
 
 case "$board" in
 aliyun,ap8220|\
+arista,c260|\
+arista,c360|\
 compex,wpq873|\
 edgecore,eap102|\
 zyxel,nbg7815|\
@@ -42,15 +44,17 @@ qnap,301w)
 dynalink,dl-wrx36|\
 netgear,rax120v2|\
 netgear,rbr750|\
+netgear,rbr850|\
 netgear,rbs750|\
+netgear,rbs850|\
 netgear,sxr80|\
 netgear,sxs80|\
 netgear,wax218|\
 netgear,wax620|\
 netgear,wax630|\
 tplink,deco-x80-5g|\
-tplink,eap620hd-v1|\
-tplink,eap660hd-v1)
+tplink,eap620-hd-v1|\
+tplink,eap660-hd-v1)
 	ubootenv_add_mtd "0:appsblenv" "0x0" "0x40000" "0x20000"
 	;;
 edimax,cax1800|\

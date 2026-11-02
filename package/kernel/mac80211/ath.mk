@@ -12,16 +12,12 @@ PKG_CONFIG_DEPENDS += \
 	CONFIG_ATH9K_TX99 \
 	CONFIG_ATH10K_LEDS \
 	CONFIG_ATH10K_THERMAL \
+	CONFIG_ATH11K_DEBUGFS_HTT_STATS \
+	CONFIG_ATH11K_DEBUGFS_STA \
+	CONFIG_ATH11K_NSS_SUPPORT \
 	CONFIG_ATH11K_THERMAL \
 	CONFIG_ATH12K_THERMAL \
-	CONFIG_ATH11K_DEBUGFS_STA \
-	CONFIG_ATH11K_DEBUGFS_HTT_STATS \
-	CONFIG_ATH_USER_REGD \
-	CONFIG_ATH11K_MEM_PROFILE_1G \
-	CONFIG_ATH11K_MEM_PROFILE_512M \
-	CONFIG_ATH11K_MEM_PROFILE_256M \
-	CONFIG_ATH11K_NSS_SUPPORT \
-	CONFIG_ATH11K_NSS_MESH_SUPPORT
+	CONFIG_ATH_USER_REGD
 
 ifdef CONFIG_PACKAGE_MAC80211_DEBUGFS
   config-y += \
@@ -66,15 +62,11 @@ config-$(CONFIG_ATH9K_TX99) += ATH9K_TX99
 config-$(CONFIG_ATH9K_UBNTHSR) += ATH9K_UBNTHSR
 config-$(CONFIG_ATH10K_LEDS) += ATH10K_LEDS
 config-$(CONFIG_ATH10K_THERMAL) += ATH10K_THERMAL
+config-$(CONFIG_ATH11K_DEBUGFS_HTT_STATS) += ATH11K_DEBUGFS_HTT_STATS
+config-$(CONFIG_ATH11K_DEBUGFS_STA) += ATH11K_DEBUGFS_STA
+config-$(CONFIG_ATH11K_NSS_SUPPORT) += ATH11K_NSS_SUPPORT ATH11K_NSS_MESH_SUPPORT ATH11K_MEM_PROFILE_512M
 config-$(CONFIG_ATH11K_THERMAL) += ATH11K_THERMAL
 config-$(CONFIG_ATH12K_THERMAL) += ATH12K_THERMAL
-config-$(CONFIG_ATH11K_MEM_PROFILE_1G) += ATH11K_MEM_PROFILE_1G
-config-$(CONFIG_ATH11K_MEM_PROFILE_512M) += ATH11K_MEM_PROFILE_512M
-config-$(CONFIG_ATH11K_MEM_PROFILE_256M) += ATH11K_MEM_PROFILE_256M
-config-$(CONFIG_ATH11K_NSS_SUPPORT) += ATH11K_NSS_SUPPORT
-config-$(CONFIG_ATH11K_NSS_MESH_SUPPORT) += ATH11K_NSS_MESH_SUPPORT
-config-$(CONFIG_ATH11K_DEBUGFS_STA) += ATH11K_DEBUGFS_STA
-config-$(CONFIG_ATH11K_DEBUGFS_HTT_STATS) += ATH11K_DEBUGFS_HTT_STATS
 
 config-$(call config_package,ath9k-htc) += ATH9K_HTC
 config-$(call config_package,ath10k,regular) += ATH10K ATH10K_PCI
@@ -84,6 +76,10 @@ config-$(call config_package,ath11k) += ATH11K
 config-$(call config_package,ath11k-ahb) += ATH11K_AHB
 config-$(call config_package,ath11k-pci) += ATH11K_PCI
 config-$(call config_package,ath12k) += ATH12K
+ifdef CONFIG_PACKAGE_kmod-ath12k
+  config-y += ATH12K_AHB
+  config-$(CONFIG_TARGET_qualcommbe) += ATH12K_COREDUMP
+endif
 
 config-$(call config_package,ath5k) += ATH5K ATH5K_PCI
 
@@ -354,10 +350,7 @@ define KernelPackage/ath11k
   DEPENDS+= +kmod-ath +@DRIVER_11AC_SUPPORT +@DRIVER_11AX_SUPPORT \
   +kmod-crypto-michael-mic +ATH11K_THERMAL:kmod-hwmon-core \
   +ATH11K_THERMAL:kmod-thermal +kmod-qcom-qmi-helpers \
-  +ATH11K_NSS_SUPPORT:kmod-qca-nss-drv \
-  +ATH11K_NSS_MESH_SUPPORT:kmod-qca-nss-drv-wifi-meshmgr \
-  +@(ATH11K_NSS_SUPPORT):NSS_DRV_WIFIOFFLOAD_ENABLE \
-  +@(ATH11K_NSS_SUPPORT):NSS_DRV_WIFI_EXT_VDEV_ENABLE
+  +ATH11K_NSS_SUPPORT:kmod-qca-nss-drv-wifi-meshmgr
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath11k/ath11k.ko
 ifdef CONFIG_ATH11K_NSS_SUPPORT
   AUTOLOAD:=$(call AutoProbe,ath11k)
@@ -370,18 +363,22 @@ This module adds support for Qualcomm Technologies 802.11ax family of
 chipsets.
 endef
 
-define KernelPackage/ath11k/conffiles
-/etc/config/pbuf
-endef
-
 define KernelPackage/ath11k/config
 
        config ATH11K_THERMAL
                bool "Enable thermal sensors and throttling support"
+               depends on TARGET_qualcommax
                depends on PACKAGE_kmod-ath11k
-               default y if TARGET_qualcommax
+               default y
 
-      config ATH11K_DEBUGFS_STA
+       config ATH11K_NSS_SUPPORT
+               bool "Enable NSS WiFi Mesh offload"
+               depends on TARGET_qualcommax
+               default y
+               help
+                  Say Y to enable NSS WiFi offload support
+
+       config ATH11K_DEBUGFS_STA
                bool "Enable ath11k station statistics"
                depends on PACKAGE_kmod-ath11k
                depends on PACKAGE_MAC80211_DEBUGFS
@@ -389,7 +386,7 @@ define KernelPackage/ath11k/config
                help
                   Say Y to enable access to the station statistics via debugfs.
 
-      config ATH11K_DEBUGFS_HTT_STATS
+       config ATH11K_DEBUGFS_HTT_STATS
                bool "Enable ath11k HTT statistics"
                depends on PACKAGE_kmod-ath11k
                depends on PACKAGE_MAC80211_DEBUGFS
@@ -397,47 +394,6 @@ define KernelPackage/ath11k/config
                help
                   Say Y to enable access to the HTT statistics via debugfs.
 
-       config ATH11K_NSS_SUPPORT
-               bool "Enable NSS WiFi offload"
-               select ATH11K_MEM_PROFILE_512M
-               select PACKAGE_kmod-qca-nss-ecm
-               default y
-               help
-                  Say Y to enable NSS WiFi offload support. Ensure you enable feeds for NSS drivers.
-                  https://github.com/qosmio/nss-packages
-
-       config ATH11K_NSS_MESH_SUPPORT
-               bool "Enable NSS WiFi Mesh offload"
-               depends on ATH11K_NSS_SUPPORT
-               select PACKAGE_MAC80211_MESH
-               select NSS_FIRMWARE_VERSION_11_4
-               default n
-
-       choice
-            prompt "Memory Profile"
-            depends on PACKAGE_kmod-ath11k
-            default ATH11K_MEM_PROFILE_512M
-            help
-            	This option allows you to select the memory profile.
-            	It should correspond to the total RAM of your board.
-
-          config ATH11K_MEM_PROFILE_1G
-               bool "Use 1G memory profile"
-               help
-                  This allows configuring ath11k for boards with 1GB+ memory.
-
-          config ATH11K_MEM_PROFILE_512M
-               bool "Use 512MB memory profile"
-               help
-                  This allows configuring ath11k for boards with 512M memory.
-                  The default is 1GB if not selected
-
-          config ATH11K_MEM_PROFILE_256M
-               bool "Use 256MB memory profile"
-               help
-                  This allows configuring ath11k for boards with 256M memory.
-                  The default is 1GB if not selected
-       endchoice
 endef
 
 define KernelPackage/ath11k-ahb
@@ -474,10 +430,13 @@ define KernelPackage/ath12k
   URL:=https://wireless.wiki.kernel.org/en/users/drivers/ath12k
   DEPENDS+= @PCI_SUPPORT +kmod-ath +@DRIVER_11AC_SUPPORT +@DRIVER_11AX_SUPPORT \
   +kmod-crypto-michael-mic +kmod-qrtr-mhi \
+  +TARGET_qualcommax:kmod-qrtr-smd +TARGET_qualcommbe:kmod-qrtr-smd \
   +kmod-qcom-qmi-helpers +@DRIVER_11BE_SUPPORT \
   +ATH12K_THERMAL:kmod-hwmon-core +ATH12K_THERMAL:kmod-thermal
-  FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath12k/ath12k.ko
-  AUTOLOAD:=$(call AutoProbe,ath12k)
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath12k/ath12k.ko \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath12k/wifi7/ath12k_wifi7.ko
+  AUTOLOAD:=$(call AutoProbe,ath12k ath12k_wifi7)
 endef
 
 define KernelPackage/ath12k/description
